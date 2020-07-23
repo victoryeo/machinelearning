@@ -30,12 +30,31 @@ def convert(s):
         except ValueError:    
             return 0;
     
+def getItemName(item):
+    englishitem = 'none'
+    if (item == 'แป้งข้าวเหนียว'):
+        englishitem = 'GLUTINOUS_RICE_FLOUR'
+    elif (item == 'มะพร้าวขูด'):
+        englishitem = 'GRATED_COCONUT'
+    elif (item == 'น้ำตาลปี๊บ' or item == 'น้ำตาลทราย'):
+        englishitem = 'SUGAR'      
+    elif (item == 'ไข่เป็ด'):
+        englishitem = 'DUCK_EGG'              
+    elif (item == 'เกลือ'):
+        englishitem = 'SALT'
+    elif (item == 'มันกุ้ง' or item == 'กุ้งสด'):
+        englishitem = 'SHRIMP'    
+    return englishitem
+        
 # price list
 GLUTINOUS_RICE_FLOUR = 10   # THB per 1g 
 GRATED_COCONUT = 5          # THB per 1g 
-PALM_SUGAR = 2              # THB per 1g
+SUGAR = 2                   # THB per 1g
+DUCK_EGG = 10               # THB per 1 piece
+SALT = 7                    # THB per 1g
+SHRIMP = 30                 # THB per 1g
 def checkPrice(item, amountname, unitname):
-    cost  = 100
+    cost  = 10
     unit = 1
     print(item, amountname, unitname)
     amount = convert(amountname)
@@ -44,23 +63,29 @@ def checkPrice(item, amountname, unitname):
         unit = 1000
     elif (unitname == 'กรัม'): 
         unit = 1
-    elif (unitname == 'ช้อนชา'):
+    elif (unitname == 'ช้อนชา'):    #teaspoon
         unit = 1
-    elif (unitname == 'ช้อนโต๊ะ'):
+    elif (unitname == 'ช้อนโต๊ะ'):    #tablespoon
+        unit = 2
+    elif (unitname ==  "ถ้วย"):       #cup
         unit = 1
-    elif (unitname ==  "ถ้วย"):
-        unit = 1
-    elif (unitname ==  "ถ้วยตวง"):
+    elif (unitname ==  "ถ้วยตวง"):  #measure cup
         unit = 1      
-    elif (unitname ==  "ฟอง"):
+    elif (unitname ==  "ฟอง"):      #bubble
         unit = 1
         
     if (item == 'แป้งข้าวเหนียว'):
         cost = GLUTINOUS_RICE_FLOUR * amount * unit
     elif (item == 'มะพร้าวขูด'):
         cost = GRATED_COCONUT * amount * unit
-    elif (item == 'น้ำตาลปี๊บ'):
-        cost = GRATED_COCONUT * amount * unit        
+    elif (item == 'น้ำตาลปี๊บ' or item == 'น้ำตาลทราย'):
+        cost = SUGAR * amount * unit      
+    elif (item == 'ไข่เป็ด'):
+        cost = DUCK_EGG * amount * unit             
+    elif (item == 'เกลือ'):
+        cost = SALT * amount * unit  
+    elif (item == 'มันกุ้ง' or item == 'กุ้งสด'):
+        cost = SHRIMP * amount * unit          
     return cost
 
 content = driver.page_source
@@ -94,6 +119,11 @@ for index, thitem in enumerate(sub):
                 except IndexError:
                     recipe_cost += 0
                 recipes[index]['ingred'][jndex] = listitem.text
+                try:
+                    english_name = getItemName(split_item[0])
+                    recipes[index]['ingred'][english_name] = split_item[2]
+                except IndexError:
+                    recipes[index]['ingred'][english_name] = 0
             recipes[index]['cost'] = recipe_cost
 
 recipe_output = []
@@ -104,6 +134,8 @@ for k,v in recipes.items():
         print(i, k2,v2)
         if k2 == 'title':
             title = v2
+        #if k2 == 'ingred':
+        #    recipe_output.append({})
         if k2 == 'cost': 
             recipe_output.append({title:v2})
             
@@ -115,6 +147,9 @@ for user_id, d in recipes.items():
     frames.append(pd.DataFrame.from_dict(d, orient='index'))
     
 pd.concat(frames, keys=user_ids).to_csv('/home/vic/workspace/recipes.csv', index=True, encoding='utf-8')
+
+# read from food price
+dataset = pd.read_csv('/home/vic/workspace/food_prices.csv')
+food_price = dataset.iloc[:, 1:7].values
     
-#df = pd.DataFrame({'Recipe Name':recipes,'Price':prices}) 
-#df.to_csv('/home/vic/workspace/recipes.csv', index=False, encoding='utf-8')
+# forecast
