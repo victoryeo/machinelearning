@@ -96,17 +96,16 @@ for index, thitem in enumerate(sub):
                 recipes[index]['ingred'][jndex] = listitem.text
             recipes[index]['cost'] = recipe_cost
 
-recipe_output = {}
+recipe_output = []
 # loop thru recipes
 for k,v in recipes.items():
     #print(k,v)
     for i, (k2,v2) in enumerate(v.items()):
         print(i, k2,v2)
-        recipe_output[i] = {}
         if k2 == 'title':
-            recipe_output[i]['title'] = v2
-        if k2 == 'cost':
-            recipe_output[i]['cost'] = v2  
+            title = v2
+        if k2 == 'cost': 
+            recipe_output.append({title:v2})
             
 # write to csv file
 user_ids = []
