@@ -11,12 +11,14 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import re
 import requests
+from matplotlib import pyplot
+from statsmodels.tsa.vector_ar.var_model import VAR
 
 driver = webdriver.Chrome("/home/vic/workspace/chromedriver")
 
 recipe_cost = 0
-recipes={} # to store name of the recipe
-prices={} # to store price of the recipe
+recipes={}  # to store name of the recipe
+prices={}   # to store price of the recipe
 
 # get the main recipe page
 driver.get("https://food.mthai.com/food-recipe")
@@ -49,7 +51,7 @@ def getEnglishName(item):
         englishitem = 'DUCK_EGG'              
     elif (item == 'เกลือ'):
         englishitem = 'SALT'
-    elif (item == 'มันกุ้ง' or item == 'กุ้งสด'):
+    elif (item == 'มันกุ้ง' or item == 'กุ้งสด' or item == 'กุ้ง(ลวก)'):
         englishitem = 'SHRIMP'    
     elif (item == 'แป้งสาลี'):
         englishitem = 'DOUGH'           
@@ -106,7 +108,7 @@ def checkPrice(item, amountname, unitname):
         cost = DUCK_EGG * amount * unit             
     elif (item == 'เกลือ'):
         cost = SALT * amount * unit  
-    elif (item == 'มันกุ้ง' or item == 'กุ้งสด'):
+    elif (item == 'มันกุ้ง' or item == 'กุ้งสด' or item == 'กุ้ง(ลวก)'):
         cost = SHRIMP * amount * unit   
     elif (item == 'แป้งสาลี'):
         cost = DOUGH * amount * unit   
@@ -121,6 +123,7 @@ def checkPrice(item, amountname, unitname):
         
     return cost
 
+# retrieve the page content
 content = driver.page_source
 soup = BeautifulSoup(content)
 
@@ -147,6 +150,14 @@ for index, thitem in enumerate(sub):
                 #print(listitem.text)
                 split_item = (re.split("( )",listitem.text))
                 print(split_item)
+                #handle this case แครอท (ซอย) 2 ช้อนโต๊ะ
+                try:
+                    if split_item[2].isdecimal() == False:
+                        split_item[0] = split_item[0] + split_item[2]
+                        split_item[2] = split_item[4]
+                        split_item[4] = split_item[6]
+                except IndexError:
+                    split_item[0] = split_item[0]
                 try:
                     recipe_cost += checkPrice(split_item[0], split_item[2], split_item[4])
                 except IndexError:
@@ -185,7 +196,16 @@ for user_id, d in recipes.items():
 pd.concat(frames, keys=user_ids).to_csv('/home/vic/workspace/recipes.csv', index=True, encoding='utf-8')
 
 # read from food price
-dataset = pd.read_csv('/home/vic/workspace/food_prices.csv')
-food_price = dataset.iloc[:, 1:7].values
-    
+fooddataset = pd.read_csv('/home/vic/workspace/food_prices.csv', header=0, parse_dates=[0], index_col=0)
+food_price = fooddataset.iloc[:, 1:7].values
+print(fooddataset.head())    
+fooddataset.plot()
+pyplot.show()
+
 # forecast
+X = fooddataset.values
+history = [x for x in X]
+
+model = VAR(endog=X)
+model_fit = model.fit()
+prediction = model_fit.forecast(model_fit.y, steps=1)
