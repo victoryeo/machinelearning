@@ -17,6 +17,8 @@ driver = webdriver.Chrome("/home/vic/workspace/chromedriver")
 recipe_cost = 0
 recipes={} # to store name of the recipe
 prices={} # to store price of the recipe
+
+# get the main recipe page
 driver.get("https://food.mthai.com/food-recipe")
 
 # convert a string quotient to float
@@ -28,12 +30,17 @@ def convert(s):
             num, denom = s.split('/')
             return float(num) / float(denom)
         except ValueError:    
-            return 0;
+            try: 
+                #handle this case 1/2ถ้วย
+                newdenom = re.findall(r'\d+', denom)
+                return float(num) / float(newdenom[0])   
+            except:
+                return 0          
     
-def getItemName(item):
+def getEnglishName(item):
     englishitem = 'none'
-    if (item == 'แป้งข้าวเหนียว'):
-        englishitem = 'GLUTINOUS_RICE_FLOUR'
+    if (item == 'แป้งข้าวเหนียว' or item == 'แป้งเค้ก'):    
+        englishitem = 'FLOUR'
     elif (item == 'มะพร้าวขูด'):
         englishitem = 'GRATED_COCONUT'
     elif (item == 'น้ำตาลปี๊บ' or item == 'น้ำตาลทราย'):
@@ -44,15 +51,30 @@ def getItemName(item):
         englishitem = 'SALT'
     elif (item == 'มันกุ้ง' or item == 'กุ้งสด'):
         englishitem = 'SHRIMP'    
+    elif (item == 'แป้งสาลี'):
+        englishitem = 'DOUGH'           
+    elif (item == 'ยีสต์'):
+        englishitem = 'YEAST'
+    elif (item == 'น้ำอุ่น' or item == 'น้ำ'):
+        englishitem = 'WATER'
+    elif (item == 'กระเทียมสับ' or item == 'กระเทียม'):
+        englishitem = 'GARLIC'
+    elif (item == 'ข้าวสวย'):
+        englishitem = 'RICE'
     return englishitem
         
 # price list
-GLUTINOUS_RICE_FLOUR = 10   # THB per 1g 
+FLOUR = 10                  # THB per 1g 
 GRATED_COCONUT = 5          # THB per 1g 
 SUGAR = 2                   # THB per 1g
 DUCK_EGG = 10               # THB per 1 piece
 SALT = 7                    # THB per 1g
 SHRIMP = 30                 # THB per 1g
+DOUGH = 5
+YEAST = 2                   # per tablespoon
+WATER = 1
+GARLIC = 8
+RICE = 3
 def checkPrice(item, amountname, unitname):
     cost  = 10
     unit = 1
@@ -74,8 +96,8 @@ def checkPrice(item, amountname, unitname):
     elif (unitname ==  "ฟอง"):      #bubble
         unit = 1
         
-    if (item == 'แป้งข้าวเหนียว'):
-        cost = GLUTINOUS_RICE_FLOUR * amount * unit
+    if (item == 'แป้งข้าวเหนียว' or item == 'แป้งเค้ก'):
+        cost = FLOUR * amount * unit
     elif (item == 'มะพร้าวขูด'):
         cost = GRATED_COCONUT * amount * unit
     elif (item == 'น้ำตาลปี๊บ' or item == 'น้ำตาลทราย'):
@@ -85,7 +107,18 @@ def checkPrice(item, amountname, unitname):
     elif (item == 'เกลือ'):
         cost = SALT * amount * unit  
     elif (item == 'มันกุ้ง' or item == 'กุ้งสด'):
-        cost = SHRIMP * amount * unit          
+        cost = SHRIMP * amount * unit   
+    elif (item == 'แป้งสาลี'):
+        cost = DOUGH * amount * unit   
+    elif (item == 'ยีสต์'):
+        cost = YEAST * amount * unit 
+    elif (item == 'น้ำอุ่น' or item == 'น้ำ'):
+        cost = WATER * amount * unit 
+    elif (item == 'กระเทียมสับ' or item == 'กระเทียม'):
+        cost = GARLIC * amount * unit    
+    elif (item == 'ข้าวสวย'):
+        cost = RICE * amount * unit                   
+        
     return cost
 
 content = driver.page_source
@@ -120,8 +153,11 @@ for index, thitem in enumerate(sub):
                     recipe_cost += 0
                 recipes[index]['ingred'][jndex] = listitem.text
                 try:
-                    english_name = getItemName(split_item[0])
-                    recipes[index]['ingred'][english_name] = split_item[2]
+                    english_name = getEnglishName(split_item[0])
+                    if  english_name in recipes[index]['ingred']:
+                      recipes[index]['ingred'][english_name] += convert(split_item[2])               
+                    else:
+                      recipes[index]['ingred'][english_name] = convert(split_item[2])               
                 except IndexError:
                     recipes[index]['ingred'][english_name] = 0
             recipes[index]['cost'] = recipe_cost
