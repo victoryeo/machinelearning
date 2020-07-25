@@ -13,6 +13,8 @@ import re
 import requests
 from matplotlib import pyplot
 from statsmodels.tsa.vector_ar.var_model import VAR
+import statsmodels.api as sm
+import numpy as np
 
 driver = webdriver.Chrome("/home/vic/workspace/chromedriver")
 
@@ -73,7 +75,7 @@ DUCK_EGG = 10               # THB per 1 piece
 SALT = 7                    # THB per 1g
 SHRIMP = 30                 # THB per 1g
 DOUGH = 5
-YEAST = 2                   # per tablespoon
+YEAST = 9                   # per tablespoon
 WATER = 1
 GARLIC = 8
 RICE = 3
@@ -146,6 +148,7 @@ for index, thitem in enumerate(sub):
             #print(ingre)
             ingreditem = ingredients.find_all('li')
             recipes[index]['ingred'] = {}
+            recipes[index]['ingred_english'] = {}
             for jndex, listitem in enumerate(ingreditem):
                 #print(listitem.text)
                 split_item = (re.split("( )",listitem.text))
@@ -166,11 +169,11 @@ for index, thitem in enumerate(sub):
                 try:
                     english_name = getEnglishName(split_item[0])
                     if  english_name in recipes[index]['ingred']:
-                      recipes[index]['ingred'][english_name] += convert(split_item[2])               
+                      recipes[index]['ingred_english'][english_name] += convert(split_item[2])               
                     else:
-                      recipes[index]['ingred'][english_name] = convert(split_item[2])               
+                      recipes[index]['ingred_english'][english_name] = convert(split_item[2])               
                 except IndexError:
-                    recipes[index]['ingred'][english_name] = 0
+                    recipes[index]['ingred_english'][english_name] = 0
             recipes[index]['cost'] = recipe_cost
 
 recipe_output = []
@@ -202,10 +205,56 @@ print(fooddataset.head())
 fooddataset.plot()
 pyplot.show()
 
-# forecast
+# build forecast model
 X = fooddataset.values
 history = [x for x in X]
-
 model = VAR(endog=X)
 model_fit = model.fit()
 prediction = model_fit.forecast(model_fit.y, steps=1)
+
+# forecast by using menu name
+menu_name = 'สูตรขนมไหว้เจ้าในวันตรุษจีน'
+# search the recipes
+for k,v in recipes.items():
+    for i, (k2,v2) in enumerate(v.items()):
+        if k2 == 'title':
+            if menu_name in v2:
+                print("matched")
+                match = k
+                break
+            
+def getPosition(argument): 
+    switcher = { 
+        'DOUGH': 5, 
+        'SALT': 0, 
+        'SUGAR': 1, 
+        'YEAST': 6,
+        'SHRIMP': 4,
+        'COCONUT': 3,
+        'DUCK_EGG': 2
+    } 
+    return switcher.get(argument, 0) 
+ 
+# build the ingredient based on menu name    
+ingredient_dict = {0: 0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0}
+#print(recipes[match]['ingred_english'])
+for k3,v3 in recipes[match]['ingred_english'].items():
+    pos = getPosition(k3)
+    print (pos, k3,v3)
+    ingredient_dict[pos] = v3
+
+#XX =np.array(list(ingredient_dict.items()))
+#XX = np.array([0,0,0,0,0,0,0])
+XX =  np.empty((0,6), float)
+for (k4,v4) in ingredient_dict.items():
+    XX = np.append(XX, v4)    
+
+# make prediction using the model built earlier
+# based on the data from the menu name
+XX = np.append(XX, XX, axis=0)
+B = np.reshape(XX, (-1, 7)) 
+prediction = model_fit.forecast(B, steps=1)
+
+# sum up the food cost
+predicted_cost =  np.sum(prediction)
+print('The predicted food cost for', menu_name ,'menu is ' , predicted_cost)
